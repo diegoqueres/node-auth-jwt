@@ -1,5 +1,6 @@
 //index.js
 require("dotenv-safe").config();
+const fs = require('fs');
 const http = require('http'); 
 const express = require('express'); 
 const app = express(); 
@@ -24,9 +25,13 @@ app.post('/login', (req, res, next) => {
     if(req.body.user === 'luiz' && req.body.password === '123'){
       //auth ok
       const userId = 1; //esse id viria do banco de dados
-      const token = jwt.sign({ userId }, process.env.SECRET, {
-        expiresIn: 300 // expires in 5min
+      const privateKey = fs.readFileSync('./keys/private.key', 'utf8');
+      const token = jwt.sign({ userId }, privateKey, {
+        expiresIn: 300,   // expires in 5min
+        algorithm:  "RS256"   //SHA-256 hash signature
       });
+
+      console.log("Fez login e gerou token!");
       return res.json({ auth: true, token: token });
     }
     
@@ -45,7 +50,8 @@ function verifyJWT(req, res, next){
     
     if (blacklist.includes(token)) return res.status(401).json({ auth: false, message: 'User already logged out.' });
     
-    jwt.verify(token, process.env.SECRET, function(err, decoded) {
+    const publicKey = fs.readFileSync('./keys/public.key', 'utf8');
+    jwt.verify(token, publicKey, {algorithm: ["RS256"]}, function(err, decoded) {
       if (err) return res.status(401).json({ auth: false, message: 'Failed to authenticate token.' });
       
       // se tudo estiver ok, salva no request para uso posterior
